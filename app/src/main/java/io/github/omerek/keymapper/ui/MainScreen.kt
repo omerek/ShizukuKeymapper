@@ -74,6 +74,7 @@ fun MainScreen() {
             ShizukuCard(status)
             if (status.serviceConnected) {
                 KeyboardCard(status)
+                OverlayCard()
                 TouchTestCard()
             }
         }

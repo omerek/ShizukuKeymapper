@@ -22,6 +22,12 @@ class InputCore(private val injector: TouchInjector) {
     @Volatile var enabled = false
         private set
 
+    /** Editör açıkken: klavye yakalanır ve tuşlar yalnızca bildirilir, dokunuşa çevrilmez. */
+    @Volatile var capture = false
+        private set
+
+    private val shouldGrab get() = enabled || capture
+
     @Volatile var devices: List<EvdevDevice> = emptyList()
         private set
 
@@ -59,8 +65,20 @@ class InputCore(private val injector: TouchInjector) {
         if (enabled == on) return
         enabled = on
         if (!on) injector.releaseAll()
-        readers.values.forEach { it.setGrab(on) }
+        updateGrab()
         notifyListener { it.onMappingEnabledChanged(on) }
+    }
+
+    @Synchronized
+    fun setCapture(on: Boolean) {
+        if (capture == on) return
+        capture = on
+        updateGrab()
+    }
+
+    private fun updateGrab() {
+        val grab = shouldGrab
+        readers.values.forEach { it.setGrab(grab) }
     }
 
     private fun rescan() {
@@ -76,7 +94,7 @@ class InputCore(private val injector: TouchInjector) {
             }
             val reader = DeviceReader(dev, fd)
             readers[dev.path] = reader
-            if (enabled) reader.setGrab(true)
+            if (shouldGrab) reader.setGrab(true)
             reader.start()
         }
         if (found != devices) {
@@ -123,8 +141,13 @@ class InputCore(private val injector: TouchInjector) {
             alive = false
         }
 
+        @Volatile private var grabbed = false
+
+        @Synchronized
         fun setGrab(on: Boolean) {
-            if (!EvdevNative.grab(fd, on)) Log.w(TAG, "EVIOCGRAB($on) başarısız: ${device.name}")
+            if (grabbed == on) return
+            if (EvdevNative.grab(fd, on)) grabbed = on
+            else Log.w(TAG, "EVIOCGRAB($on) başarısız: ${device.name}")
         }
 
         private fun loop() {

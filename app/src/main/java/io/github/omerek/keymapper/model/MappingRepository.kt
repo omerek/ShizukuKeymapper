@@ -26,6 +26,8 @@ object MappingRepository {
     /** Aynı tuşa ait eski eşlemenin yerine geçer. */
     fun upsert(mapping: KeyMapping) = save(_mappings.value.filter { it.code != mapping.code } + mapping)
 
+    fun replaceAll(list: List<KeyMapping>) = save(list.distinctBy { it.code })
+
     fun remove(code: Int) = save(_mappings.value.filter { it.code != code })
 
     fun json(): String = KeyMapping.listToJson(_mappings.value)

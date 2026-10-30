@@ -179,6 +179,15 @@ object ShizukuManager {
         runCatching { service?.setMappingEnabled(enabled) }
     }
 
+    fun setCaptureMode(capture: Boolean) {
+        runCatching { service?.setCaptureMode(capture) }
+    }
+
+    /** Overlay ve bildirim iznini shell yetkisiyle verir. Sonuç metnini döndürür. */
+    fun grantAppPermissions(): String =
+        runCatching { service?.grantAppPermissions(appContext.packageName) ?: "Servis bağlı değil" }
+            .getOrElse { it.message ?: it.toString() }
+
     fun pushMappings(json: String) {
         runCatching { service?.setKeyMappings(json) }
     }
