@@ -72,7 +72,10 @@ fun MainScreen() {
         ) {
             Text("Shizuku Keymapper", style = MaterialTheme.typography.headlineSmall)
             ShizukuCard(status)
-            if (status.serviceConnected) TouchTestCard()
+            if (status.serviceConnected) {
+                KeyboardCard(status)
+                TouchTestCard()
+            }
         }
     }
 }
@@ -217,7 +220,7 @@ private fun TouchTestCard() {
     }
 }
 
-private fun screenSize(context: Context): Pair<Int, Int> {
+internal fun screenSize(context: Context): Pair<Int, Int> {
     val wm = context.getSystemService(WindowManager::class.java)
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         val b = wm.currentWindowMetrics.bounds

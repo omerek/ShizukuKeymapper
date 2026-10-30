@@ -14,14 +14,31 @@ android {
         applicationId = "io.github.omerek.keymapper"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
+
+    // .so dosyaları nativeLibraryDir'e çıkarılsın; Shizuku servisi kütüphaneyi oradan System.load ile yükler
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 

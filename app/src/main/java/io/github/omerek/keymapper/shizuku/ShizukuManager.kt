@@ -7,13 +7,20 @@ import android.content.pm.PackageManager
 import android.os.IBinder
 import android.util.Log
 import io.github.omerek.keymapper.BuildConfig
+import io.github.omerek.keymapper.IInputListener
 import io.github.omerek.keymapper.IInputService
+import io.github.omerek.keymapper.input.EvdevDevice
+import io.github.omerek.keymapper.model.MappingRepository
 import io.github.omerek.keymapper.service.InputService
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import rikka.shizuku.Shizuku
+
+data class KeyEvent(val code: Int, val down: Boolean)
 
 enum class PermissionState { UNKNOWN, GRANTED, NOT_REQUESTED, DENIED_PERMANENTLY }
 
@@ -26,6 +33,7 @@ data class ShizukuStatus(
     val serviceConnected: Boolean = false,
     val serviceUid: Int = -1,
     val error: String? = null,
+    val nativeError: String? = null,
 ) {
     val ready get() = running && !tooOld && permission == PermissionState.GRANTED
 }
@@ -39,6 +47,31 @@ object ShizukuManager {
 
     private val _status = MutableStateFlow(ShizukuStatus())
     val status: StateFlow<ShizukuStatus> = _status.asStateFlow()
+
+    private val _devices = MutableStateFlow<List<EvdevDevice>>(emptyList())
+    val devices: StateFlow<List<EvdevDevice>> = _devices.asStateFlow()
+
+    private val _mappingEnabled = MutableStateFlow(false)
+    val mappingEnabled: StateFlow<Boolean> = _mappingEnabled.asStateFlow()
+
+    private val _keyEvents = MutableSharedFlow<KeyEvent>(extraBufferCapacity = 32)
+    /** Fiziksel klavyeden gelen tuş olayları ("tuşa bas" algılama için). */
+    val keyEvents: SharedFlow<KeyEvent> = _keyEvents
+
+    // Binder thread'lerinden çağrılır; StateFlow/SharedFlow thread-safe'tir.
+    private val listener = object : IInputListener.Stub() {
+        override fun onKey(code: Int, down: Boolean) {
+            _keyEvents.tryEmit(KeyEvent(code, down))
+        }
+
+        override fun onMappingEnabledChanged(enabled: Boolean) {
+            _mappingEnabled.value = enabled
+        }
+
+        override fun onDevicesChanged(devicesJson: String?) {
+            _devices.value = EvdevDevice.listFromJson(devicesJson)
+        }
+    }
 
     @Volatile
     var service: IInputService? = null
@@ -61,11 +94,22 @@ object ShizukuManager {
             val s = IInputService.Stub.asInterface(binder)
             service = s
             val uid = runCatching { s.uid }.getOrDefault(-1)
-            _status.update { it.copy(serviceConnected = true, serviceUid = uid, error = null) }
+            val nativeError = try {
+                s.setListener(listener)
+                s.setKeyMappings(MappingRepository.json())
+                _mappingEnabled.value = s.isMappingEnabled
+                _devices.value = EvdevDevice.listFromJson(s.devices)
+                s.initNative(appContext.applicationInfo.nativeLibraryDir)
+            } catch (e: Exception) {
+                Log.e(TAG, "Servis kurulumu başarısız", e)
+                e.message ?: e.toString()
+            }
+            _status.update { it.copy(serviceConnected = true, serviceUid = uid, error = null, nativeError = nativeError) }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
             service = null
+            _mappingEnabled.value = false
             _status.update { it.copy(serviceConnected = false, serviceUid = -1) }
         }
     }
@@ -131,9 +175,18 @@ object ShizukuManager {
         }
     }
 
+    fun setMappingEnabled(enabled: Boolean) {
+        runCatching { service?.setMappingEnabled(enabled) }
+    }
+
+    fun pushMappings(json: String) {
+        runCatching { service?.setKeyMappings(json) }
+    }
+
     fun unbindService() {
         runCatching { Shizuku.unbindUserService(serviceArgs, connection, true) }
         service = null
+        _mappingEnabled.value = false
         _status.update { it.copy(serviceConnected = false, serviceUid = -1) }
     }
 
