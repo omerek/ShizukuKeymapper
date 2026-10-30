@@ -97,6 +97,7 @@ object ShizukuManager {
             val nativeError = try {
                 s.setListener(listener)
                 s.setKeyMappings(MappingRepository.json())
+                s.setMouseLook(MappingRepository.mouseLook.value.toJson())
                 _mappingEnabled.value = s.isMappingEnabled
                 _devices.value = EvdevDevice.listFromJson(s.devices)
                 s.initNative(appContext.applicationInfo.nativeLibraryDir)
@@ -187,6 +188,10 @@ object ShizukuManager {
     fun grantAppPermissions(): String =
         runCatching { service?.grantAppPermissions(appContext.packageName) ?: "Servis bağlı değil" }
             .getOrElse { it.message ?: it.toString() }
+
+    fun pushMouseLook(json: String) {
+        runCatching { service?.setMouseLook(json) }
+    }
 
     fun pushMappings(json: String) {
         runCatching { service?.setKeyMappings(json) }

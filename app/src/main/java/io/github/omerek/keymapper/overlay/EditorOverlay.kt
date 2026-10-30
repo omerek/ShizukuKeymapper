@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,10 +42,12 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.omerek.keymapper.input.LinuxKeys
 import io.github.omerek.keymapper.model.KeyMapping
+import io.github.omerek.keymapper.model.MouseLookConfig
 import io.github.omerek.keymapper.shizuku.ShizukuManager
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
@@ -51,6 +56,9 @@ import kotlin.math.roundToInt
 private data class EditPoint(val id: Int, val code: Int?, val x: Float, val y: Float)
 
 private val MARKER_SIZE = 56.dp
+
+// Kamera alanı seçim kimliği (nokta kimlikleri 0 ve üstü)
+private const val CAMERA_ID = -100
 
 /**
  * Tam ekran yarı saydam editör.
@@ -61,7 +69,8 @@ private val MARKER_SIZE = 56.dp
 @Composable
 fun EditorOverlay(
     initial: List<KeyMapping>,
-    onSave: (List<KeyMapping>) -> Unit,
+    initialMouse: MouseLookConfig,
+    onSave: (List<KeyMapping>, MouseLookConfig) -> Unit,
     onCancel: () -> Unit,
 ) {
     val view = LocalView.current
@@ -74,6 +83,7 @@ fun EditorOverlay(
             addAll(initial.mapIndexed { i, m -> EditPoint(i, m.code, m.x, m.y) })
         }
     }
+    var mouse by remember { mutableStateOf(initialMouse) }
     var nextId by remember { mutableIntStateOf(initial.size) }
     var selected by remember { mutableStateOf<Int?>(null) }
     var awaiting by remember { mutableStateOf<Int?>(null) }
@@ -120,6 +130,14 @@ fun EditorOverlay(
                 }
             },
     ) {
+        CameraArea(
+            config = mouse,
+            origin = origin,
+            selected = selected == CAMERA_ID,
+            onSelect = { selected = CAMERA_ID },
+            onDrag = { dx, dy -> mouse = mouse.copy(cx = mouse.cx + dx, cy = mouse.cy + dy) },
+        )
+
         points.forEach { p ->
             key(p.id) {
                 PointMarker(
@@ -141,9 +159,13 @@ fun EditorOverlay(
             modifier = Modifier.align(Alignment.TopCenter),
             hint = when {
                 awaiting != null -> "Klavyede bir tuşa basın (Esc: iptal)"
+                selected == CAMERA_ID -> "Kamera alanı: sürükleyerek taşı, yarıçapı aşağıdan ayarla"
                 else -> "Boş yere dokun: nokta ekle • Sürükle: taşı • Dokun: seç"
             },
-            hasSelection = selected != null && awaiting == null,
+            hasSelection = selected != null && selected != CAMERA_ID && awaiting == null,
+            cameraSelected = selected == CAMERA_ID,
+            mouse = mouse,
+            onMouseChange = { mouse = it },
             onReassign = { selected?.let { awaiting = it } },
             onDelete = {
                 selected?.let { id -> indexOf(id).takeIf { it >= 0 }?.let { points.removeAt(it) } }
@@ -151,7 +173,7 @@ fun EditorOverlay(
             },
             onCancel = onCancel,
             onSave = {
-                onSave(points.mapNotNull { p -> p.code?.let { KeyMapping(it, p.x, p.y) } })
+                onSave(points.mapNotNull { p -> p.code?.let { KeyMapping(it, p.x, p.y) } }, mouse)
             },
         )
     }
@@ -208,6 +230,9 @@ private fun Toolbar(
     modifier: Modifier,
     hint: String,
     hasSelection: Boolean,
+    cameraSelected: Boolean,
+    mouse: MouseLookConfig,
+    onMouseChange: (MouseLookConfig) -> Unit,
     onReassign: () -> Unit,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
@@ -224,6 +249,19 @@ private fun Toolbar(
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(hint, style = MaterialTheme.typography.bodyMedium)
+            if (cameraSelected) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Mouse kamerası")
+                    Switch(checked = mouse.enabled, onCheckedChange = { onMouseChange(mouse.copy(enabled = it)) })
+                }
+                Text("Yarıçap: ${mouse.radius.roundToInt()} px", style = MaterialTheme.typography.bodySmall)
+                Slider(
+                    value = mouse.radius,
+                    onValueChange = { onMouseChange(mouse.copy(radius = it)) },
+                    valueRange = 60f..900f,
+                    modifier = Modifier.width(320.dp),
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (hasSelection) {
                     OutlinedButton(onClick = onReassign) { Text("Tuş değiştir") }
@@ -232,6 +270,58 @@ private fun Toolbar(
                 OutlinedButton(onClick = onCancel) { Text("İptal") }
                 Button(onClick = onSave) { Text("Kaydet") }
             }
+        }
+    }
+}
+
+/**
+ * Mouse kamera alanı: yarı saydam daire. Yalnızca ortadaki tutamaç dokunuş alır (daire içine yine nokta
+ * eklenebilsin diye); tutamaç sürüklenerek alan taşınır.
+ */
+@Composable
+private fun CameraArea(
+    config: MouseLookConfig,
+    origin: Offset,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onDrag: (Float, Float) -> Unit,
+) {
+    val density = LocalDensity.current
+    val diameter: Dp = with(density) { (config.radius * 2).toDp() }
+    val base = if (config.enabled) Color(0xFF43A047) else Color(0xFF9E9E9E)
+    Box(
+        Modifier
+            .offset {
+                IntOffset(
+                    (config.cx - origin.x - config.radius).roundToInt(),
+                    (config.cy - origin.y - config.radius).roundToInt(),
+                )
+            }
+            .size(diameter)
+            .background(base.copy(alpha = 0.15f), CircleShape)
+            .border(if (selected) 3.dp else 1.dp, base, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(MARKER_SIZE)
+                .background(base.copy(alpha = 0.85f), CircleShape)
+                .border(if (selected) 3.dp else 1.dp, Color.White, CircleShape)
+                .pointerInput(Unit) {
+                    detectDragGestures(onDragStart = { onSelect() }) { change, drag ->
+                        change.consume()
+                        onDrag(drag.x, drag.y)
+                    }
+                }
+                .pointerInput(Unit) { detectTapGestures { onSelect() } },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                if (config.enabled) "Kamera" else "Kapalı",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
     }
 }

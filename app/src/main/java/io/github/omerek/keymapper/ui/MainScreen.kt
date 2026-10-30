@@ -3,8 +3,9 @@ package io.github.omerek.keymapper.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.view.WindowManager
+import android.hardware.display.DisplayManager
+import android.util.DisplayMetrics
+import android.view.Display
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +76,7 @@ fun MainScreen() {
             if (status.serviceConnected) {
                 KeyboardCard(status)
                 OverlayCard()
+                MouseCard()
                 TouchTestCard()
             }
         }
@@ -221,17 +223,13 @@ private fun TouchTestCard() {
     }
 }
 
+/** Varsayılan ekranın gerçek boyutu (o anki dönüşe göre). Uygulama/servis context'iyle de çalışır. */
 internal fun screenSize(context: Context): Pair<Int, Int> {
-    val wm = context.getSystemService(WindowManager::class.java)
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        val b = wm.currentWindowMetrics.bounds
-        b.width() to b.height()
-    } else {
-        val p = android.graphics.Point()
-        @Suppress("DEPRECATION")
-        wm.defaultDisplay.getRealSize(p)
-        p.x to p.y
-    }
+    val display = context.getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY)
+    val metrics = DisplayMetrics()
+    @Suppress("DEPRECATION")
+    display.getRealMetrics(metrics)
+    return metrics.widthPixels to metrics.heightPixels
 }
 
 private fun openShizuku(context: Context) {

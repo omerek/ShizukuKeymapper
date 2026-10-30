@@ -49,4 +49,7 @@ interface IInputService {
 
     // shell yetkisiyle overlay (SYSTEM_ALERT_WINDOW) ve bildirim izinlerini ver; komut çıktılarını döndürür
     String grantAppPermissions(String packageName) = 17;
+
+    // MouseLookConfig (JSON); null = mouse kamerası kapalı
+    void setMouseLook(String configJson) = 18;
 }

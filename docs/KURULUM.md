@@ -84,3 +84,13 @@ uygulamalar"a ekleyin, yoksa One UI servisi kapatabilir.
 
 Not: Simgenin bulunduğu yere enjekte edilen dokunuşlar simgeye gider; simgeyi oyun düğmelerinin
 üstünden kenara çekin.
+
+## 8. Adım 4 testi (mouse)
+
+1. Mouse'u OTG ile takın; "Algılanan cihazlar"da "(mouse)" görünmeli.
+2. Editörü açın: yeşil yarı saydam daire "Kamera" alanıdır. Ortadaki tutamaçla oyunun kamera
+   bölgesine (sağ-orta boş alan) taşıyın, tutamaca dokunup yarıçapı ayarlayın. *Kaydet*.
+3. Ateş düğmesi için: boş yere (ateş düğmesinin üstüne) dokunun, tuş beklerken **mouse sol tuşa** tıklayın.
+4. F12 ile eşlemeyi açın. Mouse hareketi kamerayı çevirmeli, sol tık ateş etmeli.
+5. Hassasiyeti ana ekrandaki "4. Mouse" kartından ayarlayın.
+6. F12 ile kapatınca mouse normal imlece döner.

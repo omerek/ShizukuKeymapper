@@ -20,6 +20,7 @@ object LinuxKeys {
     const val BTN_LEFT = 0x110
     const val BTN_RIGHT = 0x111
     const val BTN_MIDDLE = 0x112
+    const val BTN_TASK = 0x117
 
     private val names: Map<Int, String> = buildMap {
         put(1, "Esc")
