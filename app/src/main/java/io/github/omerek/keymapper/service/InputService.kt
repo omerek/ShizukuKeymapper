@@ -10,6 +10,7 @@ import io.github.omerek.keymapper.IInputService
 import io.github.omerek.keymapper.input.EvdevDevice
 import io.github.omerek.keymapper.input.EvdevNative
 import io.github.omerek.keymapper.model.KeyMapping
+import io.github.omerek.keymapper.model.MouseLookConfig
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.lang.reflect.Method
 import java.util.concurrent.Executors
@@ -110,6 +111,10 @@ class InputService : IInputService.Stub() {
 
     override fun setKeyMappings(mappingsJson: String?) {
         core.setMappings(KeyMapping.listFromJson(mappingsJson))
+    }
+
+    override fun setMouseLook(configJson: String?) {
+        core.setMouseLook(MouseLookConfig.fromJson(configJson))
     }
 
     override fun setMappingEnabled(enabled: Boolean) = core.setEnabled(enabled)

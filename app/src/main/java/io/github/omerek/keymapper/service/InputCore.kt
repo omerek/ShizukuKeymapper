@@ -7,6 +7,7 @@ import io.github.omerek.keymapper.input.EvdevDevice
 import io.github.omerek.keymapper.input.EvdevNative
 import io.github.omerek.keymapper.input.LinuxKeys
 import io.github.omerek.keymapper.model.KeyMapping
+import io.github.omerek.keymapper.model.MouseLookConfig
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -28,8 +29,19 @@ class InputCore(private val injector: TouchInjector) {
 
     private val shouldGrab get() = enabled || capture
 
+    /** Mouse yalnızca kullanılıyorsa yakalanır; yoksa eşleme açıkken de normal imleç olarak çalışır. */
+    private fun wantGrab(device: EvdevDevice): Boolean {
+        if (!shouldGrab) return false
+        if (device.isKeyboard || capture) return true
+        val mouseUsed = mouseLook.config?.enabled == true ||
+            mappings.keys.any { it in LinuxKeys.BTN_LEFT..LinuxKeys.BTN_TASK }
+        return mouseUsed
+    }
+
     @Volatile var devices: List<EvdevDevice> = emptyList()
         private set
+
+    private val mouseLook = MouseLook(injector)
 
     private val readers = ConcurrentHashMap<String, DeviceReader>()
     @Volatile private var running = false
@@ -58,13 +70,23 @@ class InputCore(private val injector: TouchInjector) {
 
     fun setMappings(list: List<KeyMapping>) {
         mappings = list.associateBy { it.code }
+        updateGrab()
+    }
+
+    fun setMouseLook(config: MouseLookConfig?) {
+        mouseLook.release()
+        mouseLook.config = config
+        updateGrab()
     }
 
     @Synchronized
     fun setEnabled(on: Boolean) {
         if (enabled == on) return
         enabled = on
-        if (!on) injector.releaseAll()
+        if (!on) {
+            mouseLook.release()
+            injector.releaseAll()
+        }
         updateGrab()
         notifyListener { it.onMappingEnabledChanged(on) }
     }
@@ -76,16 +98,15 @@ class InputCore(private val injector: TouchInjector) {
         updateGrab()
     }
 
+    @Synchronized
     private fun updateGrab() {
-        val grab = shouldGrab
-        readers.values.forEach { it.setGrab(grab) }
+        readers.values.forEach { it.setGrab(wantGrab(it.device)) }
     }
 
     private fun rescan() {
         val found = EvdevDevice.scan()
-        val keyboards = found.filter { it.isKeyboard }
-        // Yeni klavyeler için okuyucu başlat (mouse okuma Adım 4'te)
-        for (dev in keyboards) {
+        // Yeni klavye ve mouse'lar için okuyucu başlat
+        for (dev in found) {
             if (readers.containsKey(dev.path)) continue
             val fd = EvdevNative.open(dev.path)
             if (fd < 0) {
@@ -94,7 +115,7 @@ class InputCore(private val injector: TouchInjector) {
             }
             val reader = DeviceReader(dev, fd)
             readers[dev.path] = reader
-            if (shouldGrab) reader.setGrab(true)
+            if (wantGrab(dev)) reader.setGrab(true)
             reader.start()
         }
         if (found != devices) {
@@ -120,6 +141,10 @@ class InputCore(private val injector: TouchInjector) {
             // Eşleme basılıyken silinmiş olsa bile parmağı kaldır
             injector.up(code)
         }
+    }
+
+    private fun onMouseMove(dx: Int, dy: Int) {
+        if (enabled) mouseLook.move(dx, dy)
     }
 
     private inline fun notifyListener(block: (IInputListener) -> Unit) {
@@ -152,14 +177,35 @@ class InputCore(private val injector: TouchInjector) {
 
         private fun loop() {
             val buf = IntArray(64 * 3)
+            // REL_X/REL_Y ayrı gelir; SYN_REPORT'ta tek hareket olarak işlenir
+            var dx = 0
+            var dy = 0
+            val timeout = if (device.isMouse) MOUSE_POLL_TIMEOUT_MS else POLL_TIMEOUT_MS
             Log.i(TAG, "Okuma başladı: ${device.name} (${device.path})")
             while (alive) {
-                val n = EvdevNative.read(fd, buf, POLL_TIMEOUT_MS)
+                val n = EvdevNative.read(fd, buf, timeout)
                 if (n < 0) {
                     Log.i(TAG, "Cihaz kapandı: ${device.name} (errno ${-n})")
                     break
                 }
-                for (i in 0 until n) onEvent(buf[i * 3], buf[i * 3 + 1], buf[i * 3 + 2])
+                for (i in 0 until n) {
+                    val type = buf[i * 3]
+                    val code = buf[i * 3 + 1]
+                    val value = buf[i * 3 + 2]
+                    when (type) {
+                        LinuxKeys.EV_REL -> when (code) {
+                            LinuxKeys.REL_X -> dx += value
+                            LinuxKeys.REL_Y -> dy += value
+                        }
+                        LinuxKeys.EV_SYN -> if (dx != 0 || dy != 0) {
+                            onMouseMove(dx, dy)
+                            dx = 0
+                            dy = 0
+                        }
+                        else -> onEvent(type, code, value)
+                    }
+                }
+                if (device.isMouse) mouseLook.tick()
             }
             EvdevNative.close(fd) // kapatmak yakalamayı da bırakır
             readers.remove(device.path, this)
@@ -170,5 +216,6 @@ class InputCore(private val injector: TouchInjector) {
         private const val TAG = "KeymapperInput"
         private const val SCAN_INTERVAL_MS = 2000L
         private const val POLL_TIMEOUT_MS = 250
+        private const val MOUSE_POLL_TIMEOUT_MS = 100
     }
 }

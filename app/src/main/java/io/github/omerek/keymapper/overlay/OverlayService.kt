@@ -193,8 +193,10 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
                 KeymapperTheme {
                     EditorOverlay(
                         initial = MappingRepository.mappings.value,
-                        onSave = { list ->
+                        initialMouse = MappingRepository.mouseLook.value,
+                        onSave = { list, mouse ->
                             MappingRepository.replaceAll(list)
+                            MappingRepository.setMouseLook(mouse)
                             closeEditor(save = true)
                         },
                         onCancel = { closeEditor(save = false) },
