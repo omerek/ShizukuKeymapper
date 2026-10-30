@@ -56,8 +56,8 @@ ShizukuKeymapper/
 
 | Adım | İçerik | Durum |
 |---|---|---|
-| 1 | Shizuku bağlantı ekranı + sabit noktaya dokunuş/kaydırma | bu PR |
-| 2 | /dev/input okuma (JNI), klavye algılama, EVIOCGRAB, tuş → nokta (basılı tutma) | |
+| 1 | Shizuku bağlantı ekranı + sabit noktaya dokunuş/kaydırma | PR #1 |
+| 2 | /dev/input okuma (JNI), klavye algılama, EVIOCGRAB, tuş → nokta (basılı tutma), F12 aç/kapa | PR #2 |
 | 3 | Overlay editörü: nokta sürükle, "tuşa bas" ile ata | |
 | 4 | Mouse: alan içinde kamera sürüklemesi, hassasiyet, mouse tuşu → nokta | |
 | 5 | WASD joystick | |

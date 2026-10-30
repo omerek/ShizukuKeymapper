@@ -5,7 +5,11 @@ import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import android.view.InputEvent
+import io.github.omerek.keymapper.IInputListener
 import io.github.omerek.keymapper.IInputService
+import io.github.omerek.keymapper.input.EvdevDevice
+import io.github.omerek.keymapper.input.EvdevNative
+import io.github.omerek.keymapper.model.KeyMapping
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.lang.reflect.Method
 import java.util.concurrent.Executors
@@ -18,6 +22,8 @@ import kotlin.system.exitProcess
 class InputService : IInputService.Stub() {
 
     private val injector: TouchInjector
+    private val core: InputCore
+    @Volatile private var nativeLoaded = false
     private val gestureThread = Executors.newSingleThreadExecutor()
 
     init {
@@ -33,10 +39,12 @@ class InputService : IInputService.Stub() {
                 false
             }
         }
+        core = InputCore(injector)
         Log.i(TAG, "InputService başladı, uid=${Process.myUid()}")
     }
 
     override fun destroy() {
+        core.stop()
         injector.releaseAll()
         exitProcess(0)
     }
@@ -73,6 +81,47 @@ class InputService : IInputService.Stub() {
             }
             injector.up(SLOT_SWIPE)
         }
+    }
+
+    @Synchronized
+    override fun initNative(nativeLibraryDir: String?): String? {
+        if (nativeLoaded) return null
+        val error = try {
+            System.load("$nativeLibraryDir/lib${EvdevNative.LIB_NAME}.so")
+            null
+        } catch (e: Throwable) {
+            // Yol işe yaramazsa sınıf yükleyicinin kütüphane yolunu dene
+            try {
+                System.loadLibrary(EvdevNative.LIB_NAME)
+                null
+            } catch (e2: Throwable) {
+                Log.e(TAG, "libkeymapper.so yüklenemedi", e2)
+                "${e.message} / ${e2.message}"
+            }
+        }
+        if (error == null) {
+            nativeLoaded = true
+            core.start()
+        }
+        return error
+    }
+
+    override fun getDevices(): String = EvdevDevice.listToJson(core.devices)
+
+    override fun setKeyMappings(mappingsJson: String?) {
+        core.setMappings(KeyMapping.listFromJson(mappingsJson))
+    }
+
+    override fun setMappingEnabled(enabled: Boolean) = core.setEnabled(enabled)
+
+    override fun isMappingEnabled(): Boolean = core.enabled
+
+    override fun setListener(listener: IInputListener?) {
+        core.listener = listener
+    }
+
+    override fun setToggleKey(code: Int) {
+        core.toggleKey = code
     }
 
     /** Android 14+ InputManagerGlobal, daha eskilerde InputManager.getInstance(). */

@@ -58,3 +58,14 @@ uygulamalar"a ekleyin, yoksa One UI servisi kapatabilir.
 2. "Servis bağlı ✅ uid 2000 (shell)" görünmeli.
 3. *Hedefe dokun*: mavi alandaki sayaç artmalı (dokunuşu siz değil servis yaptı).
 4. *5 sn sonra (X,Y)'ye dokun*: basın, 5 saniye içinde başka bir uygulamaya geçin; o noktaya dokunulmalı.
+
+## 6. Adım 2 testi (klavye)
+
+1. Klavyeyi OTG ile takın. "Algılanan cihazlar" altında klavyeniz "(klavye)" olarak görünmeli
+   (en geç 2 saniye). Mouse da "(mouse)" olarak listelenir ama henüz okunmaz.
+2. Klavyede bir tuşa basın: "Son basılan tuş" değişmeli.
+3. X/Y'yi "Hedef alan"ın ortasına yakın bir değere ayarlayın (test kartındaki "Hedefe dokun" logunda
+   koordinat yazar), *Tuşa basarak ekle* > Q'ya basın.
+4. *Eşleme aktif*'i açın (veya F12). Q'ya her basışta hedef alan sayacı artmalı; Q basılı tutulursa
+   dokunuş da basılı kalır. Eşleme açıkken klavye başka hiçbir yere yazmaz.
+5. F12 ile kapatınca klavye normale döner.

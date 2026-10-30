@@ -1,5 +1,7 @@
 package io.github.omerek.keymapper;
 
+import io.github.omerek.keymapper.IInputListener;
+
 // Uygulama <-> Shizuku UserService (shell, uid 2000) arayüzü.
 // "slot": dokunuşu başlatan mantıksal kaynak (ör. bir tuş). Her slot ayrı pointer id alır.
 interface IInputService {
@@ -23,4 +25,22 @@ interface IInputService {
 
     // Basit kaydırma: (x1,y1) -> (x2,y2), durationMs boyunca
     void swipe(float x1, float y1, float x2, float y2, long durationMs) = 8;
+
+    // Uygulamanın nativeLibraryDir'i; servis libkeymapper.so'yu buradan yükler. Hata yoksa null döner.
+    String initNative(String nativeLibraryDir) = 9;
+
+    // Algılanan klavye/mouse listesi (JSON)
+    String getDevices() = 10;
+
+    // KeyMapping listesi (JSON)
+    void setKeyMappings(String mappingsJson) = 11;
+
+    void setMappingEnabled(boolean enabled) = 12;
+
+    boolean isMappingEnabled() = 13;
+
+    void setListener(IInputListener listener) = 14;
+
+    // Eşlemeyi aç/kapa tuşu (varsayılan KEY_F12)
+    void setToggleKey(int code) = 15;
 }

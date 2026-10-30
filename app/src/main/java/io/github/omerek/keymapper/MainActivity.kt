@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import io.github.omerek.keymapper.model.MappingRepository
 import io.github.omerek.keymapper.shizuku.ShizukuManager
 import io.github.omerek.keymapper.ui.MainScreen
 import io.github.omerek.keymapper.ui.KeymapperTheme
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        MappingRepository.init(this)
         ShizukuManager.init(this)
         setContent {
             KeymapperTheme {
