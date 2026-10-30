@@ -69,3 +69,18 @@ uygulamalar"a ekleyin, yoksa One UI servisi kapatabilir.
 4. *Eşleme aktif*'i açın (veya F12). Q'ya her basışta hedef alan sayacı artmalı; Q basılı tutulursa
    dokunuş da basılı kalır. Eşleme açıkken klavye başka hiçbir yere yazmaz.
 5. F12 ile kapatınca klavye normale döner.
+
+## 7. Adım 3 testi (overlay editörü)
+
+1. Ana ekranda "3. Overlay editörü" > *İzni Shizuku ile ver* (olmazsa *Ayarlardan ver*).
+2. *Simgeyi göster*: ekranın solunda gri "KM" simgesi çıkar. Sürükleyerek taşıyabilirsiniz.
+3. Oyunu (PUBG) açın, simgeye dokunun: ekran kararır ve editör açılır.
+   - Boş bir yere dokunun → turuncu nokta çıkar → klavyede bir tuşa basın → nokta mavi olur ve tuş adı yazar.
+   - Noktayı sürükleyerek taşıyın. Noktaya dokunup *Tuş değiştir* / *Sil*.
+   - Tuş beklerken Esc iptal eder.
+   - *Kaydet*.
+4. F12 ile eşlemeyi açın: simge yeşil "AÇIK" olur. Atadığınız tuşlar oyunda o noktalara dokunur.
+5. Editör açıkken eşleme otomatik durur, kapatınca eski hâline döner.
+
+Not: Simgenin bulunduğu yere enjekte edilen dokunuşlar simgeye gider; simgeyi oyun düğmelerinin
+üstünden kenara çekin.

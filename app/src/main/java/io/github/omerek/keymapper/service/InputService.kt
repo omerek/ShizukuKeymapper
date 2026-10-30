@@ -124,6 +124,26 @@ class InputService : IInputService.Stub() {
         core.toggleKey = code
     }
 
+    override fun setCaptureMode(capture: Boolean) = core.setCapture(capture)
+
+    override fun grantAppPermissions(packageName: String?): String {
+        val pkg = packageName ?: return "paket adı yok"
+        val commands = listOf(
+            listOf("appops", "set", pkg, "SYSTEM_ALERT_WINDOW", "allow"),
+            listOf("pm", "grant", pkg, "android.permission.POST_NOTIFICATIONS"),
+        )
+        return commands.joinToString("\n") { cmd ->
+            try {
+                val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+                val out = proc.inputStream.bufferedReader().readText().trim()
+                val code = proc.waitFor()
+                "${cmd.joinToString(" ")} -> $code ${out}".trim()
+            } catch (e: Exception) {
+                "${cmd.joinToString(" ")} -> ${e.message}"
+            }
+        }
+    }
+
     /** Android 14+ InputManagerGlobal, daha eskilerde InputManager.getInstance(). */
     private fun resolveInjectMethod(): Pair<Any, Method> {
         val cls = try {

@@ -11,6 +11,7 @@ object LinuxKeys {
     const val REL_Y = 1
     const val REL_WHEEL = 8
 
+    const val KEY_ESC = 1
     const val KEY_A = 30
     const val KEY_Z = 44
     const val KEY_SPACE = 57

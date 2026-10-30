@@ -43,4 +43,10 @@ interface IInputService {
 
     // Eşlemeyi aç/kapa tuşu (varsayılan KEY_F12)
     void setToggleKey(int code) = 15;
+
+    // Editör modu: klavyeyi yakala, tuşları yalnızca bildir (dokunuş üretme)
+    void setCaptureMode(boolean capture) = 16;
+
+    // shell yetkisiyle overlay (SYSTEM_ALERT_WINDOW) ve bildirim izinlerini ver; komut çıktılarını döndürür
+    String grantAppPermissions(String packageName) = 17;
 }
